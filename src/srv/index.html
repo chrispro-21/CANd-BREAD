@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="plotly.js"></script>
+</head>
+
+<body onload="loadData()">
+    <h1>BREAD Configuration and Controls</h1>
+
+    <!-- Controls Section -->
+    <div class="controls">
+        <!-- First row: Start Logging and E-STOP buttons -->
+        <div class="start-stop">
+            <button id="run" onclick="setRunning()">Start Logging Data</button>
+            <button id="estop" class="estop-button" onclick="setESTOP()">E-STOP OFF</button>
+        </div>
+
+        <!-- Second row: Download/Clear buttons for Pyrolysis, Bioreactor, Chemreactor -->
+        <div class="buttons-row">
+            <button id="download-pyrolysis"
+                onclick="downloadCSVFile('pyrolysis-data.csv', 'pyrolysis-data.csv')">Download Pyrolysis Data</button>
+            <button id="delete-pyrolysis" ondblclick="clearPyrolysis()">Clear All Pyrolysis Data</button>
+            <button id="download-bio" onclick="downloadCSVFile('bioreactor-data.csv', 'bioreactor-data.csv')">Download
+                Bioreactor Data</button>
+            <button id="delete-bio" ondblclick="clearBioreactor()">Clear All Bioreactor Data</button>
+            <button id="download-chem"
+                onclick="downloadCSVFile('chemreactor-data.csv', 'chemreactor-data.csv')">Download Chemreactor
+                Data</button>
+            <button id="delete-chem" ondblclick="clearChemreactor()">Clear All Chemreactor Data</button>
+        </div>
+
+        <!-- Third row: Clear All Data button -->
+        <div class="clear-all-row">
+            <button ondblclick="clearPyrolysis(); clearBioreactor(); clearChemreactor();" class="clear-all-button">Clear
+                All Data</button>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="connection-status">
+            <p>Connection to ESP32: </p>
+            <div id="connection" class="connection-indicator"></div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Pyrolysis Section -->
+    <div id="pyrolysis"></div>
+
+    <!-- Bioreactor Section -->
+    <div id="bioreactor"></div>
+
+    <!-- Chemreactor Section -->
+    <div id="chemreactor"></div>
+
+    <!-- Load modular scripts -->
+    <script src="controls.js"></script>
+    <script src="pyrolysis.js"></script>
+    <script src="bioreactor.js"></script>
+    <script src="chemreactor.js"></script>
+
+    <!-- Main script to load data -->
+    <script>
+
+        function loadHTML(url, containerId, callback) {
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById(containerId).innerHTML = data;
+                    if (callback) callback(); // Call the plotting function after HTML is loaded
+                })
+                .catch(error => console.error('Error loading HTML:', error));
+        }
+
+        // Function to load all HTML content before initializing the plots
+        function loadAllHTML() {
+            loadHTML('bioreactor.html', 'bioreactor', plotBioData);
+            loadHTML('pyrolysis.html', 'pyrolysis', plotPyrolysisData);
+            loadHTML('chemreactor.html', 'chemreactor', plotChemData);
+        }
+
+        function loadData() {
+            loadAllHTML()
+
+            // load Pyrolysis Data	
+            loadDataPyrolysis()
+
+            // load bioreactor data
+            loadDataBioreactor()
+
+            // load chemreactor data
+            loadDataChemreactor()
+
+            //send time to ESP32
+            var now = new Date();
+            var rtcTime = now.toLocaleTimeString('en-US', { hour12: false }).split(":")
+            rtcTime[2] = parseInt(rtcTime[2])
+            var rtcDate = now.toLocaleDateString().split("/")
+            fetch(window.location.href + "get-variables", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: rtcTime[2] + "," + rtcTime[1] + "," + rtcTime[0] + "," + rtcDate[1] + "," + rtcDate[0] + "," + rtcDate[2],
+            })
+                .then(response => response.text()) // Get the response as text
+                .then(textData => {
+                    let sections = textData.split('-')
+                    if (sections[0] == "logging") {
+                        logging = true;
+                        document.getElementById("run").textContent = "Logging Data..."
+                    } else if (sections[0] == "not logging") {
+                        logging = false;
+                        document.getElementById("run").textContent = "Start Logging Data"
+                    }
+
+                    // load previous control parameters
+                    console.log('Control Parameters: ', sections)
+
+                    loadPyrolysisGauges(sections[1])
+
+                    loadBioPhGauges(sections[2])
+
+                    loadTurbidityGauges(sections[3])
+
+                    loadBioProGauges(sections[4])
+
+                    loadBioGauges(sections[5])
+
+                    loadChemGauges(sections[6])
+
+                    loadChemThermoGauges(sections[7])
+                })
+        }
+
+        var pUpdateCounter = 2;
+        var bUpdateCounter = 2;
+        var cUpdateCounter = 2;
+
+        if (!!window.EventSource) {
+            var source = new EventSource('/events');
+
+            source.addEventListener('open', function (e) {
+                console.log("Events Connected");
+                document.getElementById("connection").style.backgroundColor = "green"; // Change this to the desired color when connected
+            }, false);
+
+            source.addEventListener('error', function (e) {
+                if (e.target.readyState != EventSource.OPEN) {
+                    console.log("Events Disconnected");
+                    document.getElementById("connection").style.backgroundColor = "red"; // Change this to the desired color when disconnected
+                }
+            }, false);
+
+            pyrolysisEventListeners(source)
+            bioreactorEventListeners(source)
+            chemreactorEventListeners(source)
+        }
+
+        var logging = false;
+        function setRunning() {
+            logging = !logging
+            if (logging) {
+                document.getElementById("run").textContent = "Logging Data..."
+                sendPOST("logging", "logging")
+            } else {
+                document.getElementById("run").textContent = "Start Logging Data"
+                sendPOST("not logging", "not-logging")
+            }
+        }
+
+        function setESTOP() {
+            if (document.getElementById("estop").textContent == 'E-STOP OFF') {
+                document.getElementById("estop").textContent = 'E-STOP ON'
+                sendPOST("estop on", "estop-on")
+            } else {
+                document.getElementById("estop").textContent = 'E-STOP OFF'
+                sendPOST("estop off", "estop-off")
+            }
+        }
+
+        function sendPOST(data, action) {
+            var url = window.location.href + action;
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: String(data),
+            })
+                .then(response => response.text()) // Get the response as text
+                .then(textData => {
+                    // Handle the data from the response
+                    //console.log('Response Data:', textData);
+                })
+        }
+
+        function setTracking(buttonID, inputID, graphID) {
+            if (document.getElementById(buttonID).textContent == 'Track Data') {
+                document.getElementById(buttonID).textContent = 'Tracking Data...'
+                trackData(document.getElementById(inputID).value, graphID)
+            } else {
+                document.getElementById(buttonID).textContent = 'Track Data'
+            }
+        }
+
+        function trackData(amount, graphID) {
+            // hardcoded filler until I find a better way to do this from the csv or rtc
+            let currentDate = new Date("2024-07-11")
+            Plotly.relayout(graphID, { "xaxis.range": [currentDate - amount * 1000, currentDate] })
+        }
+
+        function downloadCSVFile(url, filename) {
+            // Create a hidden anchor element
+            const anchor = document.createElement('a');
+            anchor.style.display = 'none';
+            document.body.appendChild(anchor);
+
+            // Set the href attribute of the anchor element to the CSV file URL
+            anchor.href = url;
+
+            // Set the download attribute to specify the filename
+            anchor.setAttribute('download', filename);
+
+            // Trigger a click event on the anchor element to start the download
+            anchor.click();
+
+            // Clean up by removing the anchor element
+            document.body.removeChild(anchor);
+        }
+
+
+    </script>
+
+</body>
+
+</html>
