@@ -27,12 +27,10 @@ int8_t sendFrame(uint16_t id, uint8_t* data){
 }
 
 uint8_t initCAN(){
-    if(ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10)) {
+        if(ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10)) {
         Serial.println("CAN bus started!");
-        return 1;
     } else {
         Serial.println("CAN bus failed!");
-        return 0;
     }
 }
 uint32_t lastPOST;
@@ -40,6 +38,7 @@ bool isHeThere = 0;
 bool isDeviceOnCAN() {
     return isHeThere;
 }
+
 void setup()
 {
     Serial.begin(115200);
@@ -64,13 +63,12 @@ void loop()
 {
     char message[8] = "Hello?";
     if (millis() - lastPOST > SLICE_DATA_INTERVAL_MS) {
-        sendFrame(0x122, (uint8_t*) message);
+        sendFrame(123, (uint8_t*) message);
         if(ESP32Can.readFrame(rxFrame, 1000)) {
             Serial.printf("Received frame from: %03X. Data is: %x \r\n", rxFrame.identifier, rxFrame.data);
             isHeThere = 1;
         }
         else {
-            Serial.println("He not there, big sad :(");
             isHeThere = 0;
         }
         lastPOST = millis();

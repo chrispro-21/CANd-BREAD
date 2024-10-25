@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SLICE_DATA_INTERVAL_MS 10000
+#define SLICE_DATA_INTERVAL_MS 1000
 
 #define NUM_DCMT_SLICES 8
 #define NUM_RLHT_SLICES 8
@@ -15,7 +15,7 @@
 
 #define ESTOP 32
 
-const char *ssid = "BREAD-Jelly";
+const char *ssid = "CAN'd-BREAD";
 const char *password = "P@ssw0rd123#";
 
 // CAN Ports

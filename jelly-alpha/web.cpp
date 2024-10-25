@@ -15,8 +15,8 @@ AsyncWebServer server(80);
 AsyncEventSource events("/events");
 
 // WiFi credentials
-const char *ssid = "BREAD-DARPA";
-const char *password = "12345678";
+const char *ssid = "CAN'd-BREAD";
+const char *password = "P@ssw0rd123#";
 
 void startWiFi() {
     WiFi.softAP(ssid, password);
