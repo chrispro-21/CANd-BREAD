@@ -19,7 +19,8 @@ const char *ssid = "CAN'd-BREAD";
 const char *password = "P@ssw0rd123#";
 
 // CAN Ports
-#define CAN_TX		5
-#define CAN_RX		4
+#define CAN_TX		19
+#define CAN_RX		18
+#define CAN_STDBY   17
 
 #endif
