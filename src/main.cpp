@@ -21,20 +21,6 @@ int8_t sendFrame(uint16_t id, uint8_t* data){
     txFrame.identifier = id & 0xffe;
     txFrame.data_length_code = 8;
 
-    // I dont want to know why... 
-    // I shouldnt have to wonder why...
-    // But this code wont work unless I do this bullshit. 
-    // txFrame.data[0] = data[0];
-	// txFrame.data[1] = data[1];
-	// txFrame.data[2] = data[2];
-	// txFrame.data[3] = data[3];
-	// txFrame.data[4] = data[4];
-	// txFrame.data[5] = data[5];
-	// txFrame.data[6] = data[6];
-	// txFrame.data[7] = data[7];
-
-    // 10 mins later... Chris, you tard.
-
     for (int i = 0; i < txFrame.data_length_code; i++){
         txFrame.data[i] = data[i];
     }
@@ -60,7 +46,6 @@ uint32_t lastPOST;
 bool isHeThere = 0;
 uint32_t freq = 0;
 
-// String lastMessage = "";
 bool isDeviceOnCAN() {
     return isHeThere;
 }
