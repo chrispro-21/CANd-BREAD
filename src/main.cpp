@@ -15,13 +15,13 @@ void startWiFi() {
     Serial.println("Server started");
 }
 
-int8_t sendFrame(uint16_t id, uint8_t* data){
+int8_t sendFrame(uint16_t id, uint8_t dataLen, uint8_t* data){
     CanFrame txFrame = {0};
     txFrame.extd = 0;
     txFrame.identifier = id & 0xffe;
-    txFrame.data_length_code = 8;
+    txFrame.data_length_code = dataLen;
 
-    for (int i = 0; i < txFrame.data_length_code; i++){
+    for (int i = 0; i < dataLen; i++){
         txFrame.data[i] = data[i];
     }
 
@@ -30,8 +30,8 @@ int8_t sendFrame(uint16_t id, uint8_t* data){
 
 uint8_t initCAN(){
     // wakey wakey CAN tranciever
-    pinMode(CAN_STDBY, OUTPUT);
-    digitalWrite(CAN_STDBY, 0x01);
+    // pinMode(CAN_STDBY, OUTPUT);
+    // digitalWrite(CAN_STDBY, 0x01);
     
 
     if(ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10)) {
@@ -83,6 +83,7 @@ void setup()
     startWiFi();
 
     // Serve the root web page
+    // God please forgive me. This is what I must do until I get an SD card with a file system
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         String message = "<html><head><title>Canned BREAD Web Interface</title>";
         message += "<style>"
@@ -155,7 +156,7 @@ void loop()
 {
     char message[8] = "Testing";
     if (millis() - lastPOST > SLICE_DATA_INTERVAL_MS) {
-        sendFrame(0x122, (uint8_t*) message);
+        sendFrame(0x122, 8, (uint8_t*) message);
         lastPOST = millis();
     }
     if(ESP32Can.readFrame(rxFrame, 2000)) {
